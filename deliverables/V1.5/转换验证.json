@@ -1,0 +1,92 @@
+[
+  {
+    "file": "一楼原始结构及拆改平面图.dwg",
+    "entities": 275,
+    "skipped": {
+      "count": 0,
+      "sections": {}
+    },
+    "DWG_palette": "ACI adaptive/dark",
+    "PDF_palette": "separate white-background true colour"
+  },
+  {
+    "file": "一楼功能分区与家具布置图.dwg",
+    "entities": 414,
+    "skipped": {
+      "count": 0,
+      "sections": {}
+    },
+    "DWG_palette": "ACI adaptive/dark",
+    "PDF_palette": "separate white-background true colour"
+  },
+  {
+    "file": "一楼厨房及打菜设备布置图.dwg",
+    "entities": 272,
+    "skipped": {
+      "count": 0,
+      "sections": {}
+    },
+    "DWG_palette": "ACI adaptive/dark",
+    "PDF_palette": "separate white-background true colour"
+  },
+  {
+    "file": "一楼尺寸标注平面图.dwg",
+    "entities": 414,
+    "skipped": {
+      "count": 0,
+      "sections": {}
+    },
+    "DWG_palette": "ACI adaptive/dark",
+    "PDF_palette": "separate white-background true colour"
+  },
+  {
+    "file": "二楼原始结构及拆改平面图.dwg",
+    "entities": 230,
+    "skipped": {
+      "count": 0,
+      "sections": {}
+    },
+    "DWG_palette": "ACI adaptive/dark",
+    "PDF_palette": "separate white-background true colour"
+  },
+  {
+    "file": "二楼功能分区与家具布置图.dwg",
+    "entities": 328,
+    "skipped": {
+      "count": 0,
+      "sections": {}
+    },
+    "DWG_palette": "ACI adaptive/dark",
+    "PDF_palette": "separate white-background true colour"
+  },
+  {
+    "file": "二楼尺寸标注平面图.dwg",
+    "entities": 328,
+    "skipped": {
+      "count": 0,
+      "sections": {}
+    },
+    "DWG_palette": "ACI adaptive/dark",
+    "PDF_palette": "separate white-background true colour"
+  },
+  {
+    "file": "一二楼综合设计图.dwg",
+    "entities": 743,
+    "skipped": {
+      "count": 0,
+      "sections": {}
+    },
+    "DWG_palette": "ACI adaptive/dark",
+    "PDF_palette": "separate white-background true colour"
+  },
+  {
+    "file": "餐桌600与凳面300及通道详图.dwg",
+    "entities": 55,
+    "skipped": {
+      "count": 0,
+      "sections": {}
+    },
+    "DWG_palette": "ACI adaptive/dark",
+    "PDF_palette": "separate white-background true colour"
+  }
+]

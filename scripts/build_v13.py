@@ -10,6 +10,7 @@ import hashlib
 import json
 import math
 import subprocess
+from dataclasses import dataclass
 
 import ezdxf
 import pymupdf
@@ -20,6 +21,42 @@ from shapely.geometry import LineString, Polygon, box
 import build_v12 as B
 
 OUT = B.ROOT / 'deliverables' / 'V1.3'
+
+@dataclass(frozen=True)
+class Revision:
+    version: str = 'V1.3'
+    room_two_length: int = 3450
+    bottom_squats: bool = False
+    screen_face_y: int = 10400
+    row_extra_clearance: int = 0
+    room_two_diameter: int = 1500
+    room_two_seats: int = 8
+    room_two_center_x: int = 12240
+    two_squats: bool = False
+    male_urinals_top: bool = False
+    male_wc_door: bool = False
+
+REVISION = Revision()
+
+def configure(revision):
+    """Keep the V1.3 default reproducible while allowing bounded revisions."""
+    global REVISION, OUT, ROOMS, ROUND_TABLES
+    REVISION = revision
+    OUT = B.ROOT / 'deliverables' / revision.version
+    ROOMS = [(10190,100,14040,3500),
+             (10190,3600,14040,3600+revision.room_two_length)]
+    ROUND_TABLES = [
+        {'center': (12240, 1800), 'dia': 1500, 'seats': 8},
+        {'center': (revision.room_two_center_x,
+                    3600 + revision.room_two_length / 2),
+         'dia': revision.room_two_diameter, 'seats': revision.room_two_seats},
+    ]
+
+def upper_wall_y():
+    return ROOMS[1][3]+50
+
+def upper_row_y():
+    return 8400+REVISION.room_two_length-3450+REVISION.row_extra_clearance
 ACI = {'原有结构':7,'原有卫生间':7,'原有传菜梯':4,'拟拆隔墙':1,
        '新隔墙':30,'门':3,'餐桌':3,'凳子300':3,'厨房设备':4,'打菜2人':30,
        '唯一回收点':30,'屏幕':6,'净空保留':9,'流线':6,'文字':7,'尺寸':2,'图框':7,
@@ -28,7 +65,10 @@ PRINT_RGB = dict(B.COLORS, **{'楼梯踏步':(30,100,145),'梯下投影':(110,12
                            '常闭门':(150,90,25),'消防标识':(175,35,35),
                            '洁具标识_示意':(30,100,145)})
 ROOMS = [(10190,100,14040,3500),(10190,3600,14040,7050)]
-ROUND_CENTRES = [(12240,1800),(12240,5325)]
+ROUND_TABLES = [
+    {'center': (12240, 1800), 'dia': 1500, 'seats': 8},
+    {'center': (12240, 5325), 'dia': 1500, 'seats': 8},
+]
 HYDRANTS = [
     {'id':'FH-1-01','floor':1,'handle':'2B5FC','point':(585.94,20395),
      'label':(-650,20350),'elbow':(-200,20395),'rotation':90,
@@ -72,7 +112,7 @@ def setup():
     B.obj(1,'厨房',(11150,2800,14000,8200))
     B.OBJS[2]=[(n,p) for n,p in B.OBJS[2] if n not in ('下包房','上包房')]
     B.obj(2,'下包房',ROOMS[0]);B.obj(2,'上包房',ROOMS[1])
-    B.table(2,10300,8400,2);B.table(2,12500,8400,2)
+    B.table(2,10300,upper_row_y(),2);B.table(2,12500,upper_row_y(),2)
     B.keep(1,'左上防火栓前',(460.94,19780,1710.94,21010))
     B.keep(2,'防火栓前',(3000,3560,4170,4560))
 
@@ -104,8 +144,8 @@ def walls(m,f):
         m.add_arc((13000,8300),900,0,90,dxfattribs={'layer':'门'})
     else:
         seg=[((10140,100),(10140,1400)),((10140,2400),(10140,4900)),
-             ((10140,5900),(10140,7100)),((10140,3550),(14140,3550)),
-             ((10140,7100),(14140,7100))]
+             ((10140,5900),(10140,upper_wall_y())),((10140,3550),(14140,3550)),
+             ((10140,upper_wall_y()),(14140,upper_wall_y()))]
         B.slide(m,10140,1400);B.slide(m,10140,4900);B.slide(m,1830,5500)
     for a,b in seg:
         B.wall(m,a,b);B.NEW_WALLS[f].append(LineString([a,b]).buffer(50,cap_style=2))
@@ -136,13 +176,20 @@ def equipment(m,f):
         B.rect(m,(7700,12200,8300,14000),'唯一回收点')
         B.txt(m,'全楼唯一餐具回收',(8000,13100),135,'唯一回收点',rot=90)
     else:
-        for cx,cy in ROUND_CENTRES:
-            m.add_circle((cx,cy),750,dxfattribs={'layer':'餐桌'})
-            B.txt(m,'Φ1500 mm',(cx,cy),145)
-            for i in range(8):
-                a=math.pi*2*i/8;x=cx+1000*math.cos(a);y=cy+1000*math.sin(a)
+        for rt in ROUND_TABLES:
+            cx,cy=rt['center']; dia=rt['dia']; seats=rt['seats']
+            m.add_circle((cx,cy),dia/2,dxfattribs={'layer':'餐桌'})
+            B.txt(m,f'Φ{dia} mm / {seats}人',(cx,cy),135)
+            chair_radius=dia/2+250
+            for i in range(seats):
+                a=math.pi*2*i/seats
+                x=cx+chair_radius*math.cos(a); y=cy+chair_radius*math.sin(a)
                 B.rect(m,(x-150,y-150,x+150,y+150),'凳子300')
-        B.rect(m,(4300,10400,6700,10500),'屏幕')
+        screen_y=REVISION.screen_face_y
+        B.rect(m,(4300,screen_y,6700,screen_y+100),'屏幕')
+        if screen_y != 10400:
+            for x in (4500,6500):
+                B.ln(m,(x,screen_y+100),(x,10500),'屏幕')
         B.txt(m,'上方墙面显示屏 2400×1350 mm',(5500,10850),175,'屏幕')
 
 def leader(m,points,label,location,layer,h=160,rot=0):
@@ -181,8 +228,65 @@ def stairs(m,f):
 def toilet_symbols(m):
     # The original has no male/female room labels or fixture schedule. These are
     # explicitly annotation icons, NOT added fixtures or a verified inventory.
-    B.txt(m,'男卫*',(1180,3200),185,'洁具标识_示意')
-    B.txt(m,'女卫*',(3100,3200),185,'洁具标识_示意')
+    B.txt(m,'男卫' if REVISION.bottom_squats else '男卫*',(1180,3200),185,'洁具标识_示意')
+    B.txt(m,'女卫' if REVISION.bottom_squats else '女卫*',(3100,3200),185,'洁具标识_示意')
+    if REVISION.two_squats:
+        # V1.5: two squat stalls at the bottom of each room; male urinals at
+        # the top (stair side). The original wash block, walls and stall lines
+        # are imported unchanged by original().
+        for x0,x1 in [(350,1100),(1100,1850),(2250,3150),(3150,4050)]:
+            B.ln(m,(x0,200),(x0,1200),'洁具标识_示意')
+            B.ln(m,(x1,200),(x1,1200),'洁具标识_示意')
+            B.ln(m,(x0,1200),(x0+180,1200),'洁具标识_示意')
+            B.ln(m,(x1-180,1200),(x1,1200),'洁具标识_示意')
+            cx=(x0+x1)/2
+            m.add_ellipse((cx,700),major_axis=(0,190),ratio=110/190,
+                          dxfattribs={'layer':'洁具标识_示意'})
+            B.ln(m,(cx-80,1080),(cx+80,1080),'洁具标识_示意')
+        B.txt(m,'蹲位1',(725,1050),115,'洁具标识_示意')
+        B.txt(m,'蹲位2',(1475,1050),115,'洁具标识_示意')
+        B.txt(m,'蹲位1',(2700,1050),115,'洁具标识_示意')
+        B.txt(m,'蹲位2',(3600,1050),115,'洁具标识_示意')
+        if REVISION.male_urinals_top:
+            for x0,x1 in [(550,750),(950,1150)]:
+                B.rect(m,(x0,1550,x1,1900),'洁具标识_示意')
+                m.add_arc(((x0+x1)/2,1550),100,180,360,
+                          dxfattribs={'layer':'洁具标识_示意'})
+            B.txt(m,'小便斗区（近楼梯）',(900,1980),115,'洁具标识_示意')
+        if REVISION.male_wc_door:
+            # Male door opens toward the wash area; female door opens into the
+            # female room (south), clear of the original wash block.
+            for hinge,label,xlab,rot in ((1329,'男卫门',1750,0),(3050,'女卫门',3330,270)):
+                if rot==0:
+                    B.ln(m,(hinge,2140),(hinge+900,2140),'门')
+                    m.add_arc((hinge,2140),900,0,90,dxfattribs={'layer':'门'})
+                else:
+                    B.ln(m,(hinge,2140),(hinge,1240),'门')
+                    m.add_arc((hinge,2140),900,270,360,dxfattribs={'layer':'门'})
+                B.txt(m,label,(xlab,2280),125,'门')
+        B.txt(m,'洗手区（原样保留）',(3700,3250),130,'洁具标识_示意')
+        B.txt(m,'蹲位/小便斗为方案布置，排水立管现场核实',
+              (2800,-350),135,'洁具标识_示意')
+        B.txt(m,'原墙、原蹲位分隔线及原洗手区块保持',
+              (2800,-650),130,'洁具标识_示意')
+        return
+    if REVISION.bottom_squats:
+        # Owner-confirmed functional positions. The original wash-basin block,
+        # walls and stall lines are imported unchanged by original().
+        for x in (1150,3100):
+            B.rect(m,(x-170,250,x+170,800),'洁具标识_示意')
+            m.add_ellipse((x,525),major_axis=(0,190),ratio=110/190,
+                          dxfattribs={'layer':'洁具标识_示意'})
+            B.txt(m,'蹲位区（下部）',(x,920),125,'洁具标识_示意')
+        B.rect(m,(800,1395,1200,1795),'洁具标识_示意')
+        m.add_arc((1000,1595),135,180,360,dxfattribs={'layer':'洁具标识_示意'})
+        B.txt(m,'小便斗区（上部）',(1190,2180),120,'洁具标识_示意')
+        B.txt(m,'女卫无小便斗区',(3100,1750),120,'洁具标识_示意')
+        B.txt(m,'功能位置按业主反馈；洁具图符示意，数量沿用现场',
+              (2800,-350),140,'洁具标识_示意')
+        B.txt(m,'原洗手区、原墙及蹲位分隔线保持',
+              (2800,-650),135,'洁具标识_示意')
+        return
     for x in (1150,3100):
         B.rect(m,(x-170,1320,x+170,1870),'洁具标识_示意')
         m.add_ellipse((x,1595),major_axis=(0,190),ratio=110/190,
@@ -224,9 +328,16 @@ def labels(m,f):
         B.txt(m,'公共110座',(16900,21400),220)
     else:
         B.txt(m,'包房一 / 8人 / 约13.1㎡',(12140,3250),170)
-        B.txt(m,'包房二 / 8人 / 约13.3㎡',(12140,6800),170)
-        B.txt(m,'包房上方新增一排：2张四人桌，共8座',(12200,9750),155)
-        B.txt(m,'公共60座 + 包房16座',(5500,11450),230)
+        area=box(*ROOMS[1]).area/1e6
+        rt2=ROUND_TABLES[1]
+        private_total=8+rt2['seats']
+        B.txt(m,f"包房二 / {rt2['seats']}人 / 约{area:.1f}㎡",
+              (12140,upper_wall_y()-300),170)
+        row_label='包房上方新增一排：2张四人桌，共8座'
+        if REVISION.version != 'V1.3':
+            row_label=f'上排餐桌上移{upper_row_y()-8400} mm / 共8座'
+        B.txt(m,row_label,(12200,max(9750,upper_row_y()+1350)),155)
+        B.txt(m,f'公共60座 + 包房{private_total}座',(5500,11450),230)
 
 def dimensions(m,f,with_tables=True):
     if f==1:
@@ -247,13 +358,15 @@ def dimensions(m,f,with_tables=True):
         dv(m,19280,19530,1850,1560.94)
     else:
         dh(m,350,14140,11950,10500);dv(m,0,10500,16000,14140)
-        dh(m,10140,14140,7600,7100)
-        dv(m,100,3500,14800,14140);dv(m,3600,7050,14800,14140)
+        dh(m,10140,14140,upper_wall_y()+500,upper_wall_y())
+        dv(m,100,3500,14800,14140);dv(m,3600,ROOMS[1][3],14800,14140)
         dv(m,1400,2400,9850,10140);dv(m,4900,5900,9850,10140)
         dh(m,8700,10140,7300,7100)
         dv(m,1060,2860,9000,8440)
         dh(m,7440,8440,-900,0)
         dh(m,350,2130,-1050,0);dh(m,2250,4050,-1050,0)
+        if REVISION.screen_face_y != 10400:
+            dv(m,REVISION.screen_face_y+100,10500,3900,4300)
     B.txt(m,'本图所有尺寸单位：mm；模型1:1，PDF适合页面打印',
           (10500 if f==1 else 7800,-1500),175)
 
@@ -262,7 +375,7 @@ def title(m,f,name):
     centre=10500 if f==1 else 7800
     B.rect(m,bounds,'图框')
     B.txt(m,name,(centre,23000 if f==1 else 12400),320)
-    B.txt(m,'美莱食堂 V1.3 | 600mm桌深 / 300mm凳面 | 黑底高对比DWG',
+    B.txt(m,f'美莱食堂 {REVISION.version} | 600mm桌深 / 300mm凳面 | 黑底高对比DWG',
           (centre,-2050),175)
     B.txt(m,'实线：结构及桌凳；长虚线：净空；楼梯踏步和洁具图符为标识示意',
           (centre,-2470),150)
@@ -290,31 +403,48 @@ def verify(src):
         for name,p in B.OBJS[f]:
             for name2,q in B.KEEP[f]:
                 if p.intersection(q).area>1:errors.append(name+' overlaps '+name2)
-    opaque=[box(10140,0,14140,7100),box(350,0,4170,3560),
+    opaque=[box(10140,0,14140,upper_wall_y()),box(350,0,4170,3560),
             box(350,3560,2500,7000),box(7440,0,8440,1060)]+B.SOURCE_POLYS[2]
     blocked=[]
     for t in B.TABLES[2]:
         for p in t['seats']:
-            if any(LineString([p,(5500,10400)]).intersection(q).length>1 for q in opaque):
+            if any(LineString([p,(5500,REVISION.screen_face_y)]).intersection(q).length>1 for q in opaque):
                 blocked.append([t['id'],p])
     if blocked:errors.append('screen sightlines '+str(blocked))
-    for centre,r in zip(ROUND_CENTRES,ROOMS):
-        cx,cy=centre;occupied=box(cx-1250,cy-1250,cx+1250,cy+1250)
+    for rt,r in zip(ROUND_TABLES,ROOMS):
+        cx,cy=rt['center'];radius=rt['dia']/2+250+150
+        occupied=box(cx-radius,cy-radius,cx+radius,cy+radius)
         if not box(*r).covers(occupied):errors.append('room stool/body envelope outside room')
-        if cx-1250-r[0]<800:errors.append('private door-side aisle below 800')
+        if cx-radius-r[0]<800:errors.append('private door-side aisle below 800')
+    private_seats=8+ROUND_TABLES[1]['seats']
     evidence=[]
     for h in HYDRANTS:
         e=src.entitydb[h['handle']]
         assert '防火栓' in e.plain_text()
         evidence.append(dict(h,source_text=e.plain_text(),source_insert=list(e.dxf.insert)))
+    if REVISION.row_extra_clearance:
+        wall_top=upper_wall_y()+50
+        for t in B.TABLES[2][-2:]:
+            if t['footprint'].bounds[1]-wall_top<799:
+                errors.append('upper dining row to private wall clearance below 800')
     result={'failures':errors,'table_spacing':spacing,
             'public_seats':{str(f):sum(len(t['seats']) for t in B.TABLES[f]) for f in (1,2)},
-            'private_seats':16,'screen_geometry_blocked':blocked,'hydrant_source_evidence':evidence,
+            'private_seats':private_seats,'private_tables':[
+                {'room':i+1,'centre':rt['center'],'diameter_mm':rt['dia'],'seats':rt['seats'],
+                 'west_aisle_mm':round(rt['center'][0]-(rt['dia']/2+250+150)-ROOMS[i][0],1)}
+                for i,rt in enumerate(ROUND_TABLES)],
+            'screen_geometry_blocked':blocked,'hydrant_source_evidence':evidence,
             'private_net_areas_m2':[round(box(*r).area/1e6,2) for r in ROOMS],
             'kitchen_net_design_m2':15.39,'store_net_design_m2':5.13,
             'stair_treads':'250mm pitch schematic; count and riser height require field confirmation',
             'under_stair_door':'normally closed; original open arc removed; not used as public entrance',
-            'toilet_icons':'Annotation only. Left male/right female and fixture location/quantity unconfirmed; original walls retained.'}
+            'toilet_icons':('Two squat stalls at the bottom of each room; two male urinals at the top (stair side); male WC door to wash area; no female urinal label; original wash area retained; exact plumbing positions illustrative.'
+                            if REVISION.two_squats else
+                            ('Owner-confirmed: squats at bottom of both rooms, male urinals at top, no female urinals; wash area retained; quantities illustrative.'
+                             if REVISION.bottom_squats else 'Annotation only. Left male/right female and fixture location/quantity unconfirmed; original walls retained.')),
+            'revision':REVISION.version,'room_two_clear_length_mm':REVISION.room_two_length,
+            'upper_row_shift_mm':upper_row_y()-8400,
+            'screen_face_y_mm':REVISION.screen_face_y}
     (OUT/'几何校核.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     if errors:raise RuntimeError('\n'.join(errors))
     return result
@@ -332,22 +462,57 @@ def detail():
     B.txt(m,'2400×600 mm桌 / 4对8人 / 凳面300×300 mm',(2000,4400),190)
     B.txt(m,'人体余量外仍留800 mm净通道；主通道优先1800 mm',(2000,4100),160)
     B.rect(m,(-1800,-2600,6000,5200),'图框')
-    B.txt(m,'V1.3 餐桌、凳面与通道尺寸详图',(2000,4800),230)
+    B.txt(m,f'{REVISION.version} 餐桌、凳面与通道尺寸详图',(2000,4800),230)
     B.txt(m,'所有尺寸单位：mm；模型1:1；PDF适合页面打印',(2000,-1900),165)
     return d
 
 def reports(result,conversions,initial_hash):
+    version=REVISION.version
+    new_revision=version!='V1.3'
+    if version=='V1.5':
+        delta_text='''## 本次二楼微调
+- 包房二改为12人，圆桌Φ1800（包房一仍为8人Φ1500）。
+- 包房二桌心向东移175mm，保留靠门西侧约925mm净通道；东侧椅背距墙约325mm。
+- 男卫和女卫均在底部设置两个蹲位；男卫顶部靠楼梯一侧设置两个小便斗。
+- 男卫新增通往洗手区的厕所门；女卫不设小便斗区，也不再标注“女卫无小便斗区”。
+- 原洗手区块、原墙线及原蹲位分隔保持。
+'''
+    elif new_revision:
+        delta_text='''## 本次二楼微调
+- 包房二净长度3450→4000mm，增加550mm；包房一维持3400mm净长度。
+- 上方公共桌排实际上移600mm（550mm增量+50mm墙面净空补偿），保持墙外人体包络净距800mm。
+- 男女蹲位区均在下部，男卫小便斗区在上部，女卫不设小便斗区；洗手区保留。
+- 桌排上移后原屏幕安装面会受柱遮挡，屏幕仍位于上方原墙面，采用400mm前伸支架示意将安装面置于柱前；支架及固定需现场复核。
+'''
+    else:
+        delta_text=''
+    if version=='V1.5':
+        room_change=(f'包房一净面积约{result["private_net_areas_m2"][0]}㎡，8人Φ1500mm圆桌；包房二净面积约{result["private_net_areas_m2"][1]}㎡，{ROUND_TABLES[1]["seats"]}人Φ{ROUND_TABLES[1]["dia"]}mm圆桌。包房二净尺寸3850×{REVISION.room_two_length}mm；桌心向东移{ROUND_TABLES[1]["center"][0]-12240:.0f}mm，西侧靠门通道约{result["private_tables"][1]["west_aisle_mm"]:.0f}mm。门前1440mm通道保留。上方两张四人桌维持y={upper_row_y()}mm。')
+    elif new_revision:
+        room_change=(f'包房一净面积约{result["private_net_areas_m2"][0]}㎡、包房二约{result["private_net_areas_m2"][1]}㎡，一小一大，仍各8人、Φ1500mm圆桌。包房一净尺寸3850×3400mm；包房二3850×{REVISION.room_two_length}mm。门前1440mm通道保留。包房二顶墙中心线移到y={upper_wall_y()}mm，原两张1200×600mm四人桌移到y={upper_row_y()}mm，座位数不变。')
+    else:
+        room_change=(f'两间包房净面积约{result["private_net_areas_m2"][0]}㎡、{result["private_net_areas_m2"][1]}㎡，仍各8人、Φ1500mm圆桌。门前1440mm通道保留。包房顶边从y=8100mm下移到7100mm，上方增加两张1200×600mm四人桌，合计新增8座。')
+    if version=='V1.5':
+        toilet_change=('两间卫生间底部各布置两个蹲位；男卫顶部靠楼梯一侧布置两个小便斗。男卫入口增加通往洗手区的厕所门，女卫不设小便斗区，也不再画“女卫无小便斗区”的标识。原洗手区块、原墙线及原蹲位分隔保持；蹲位/小便斗为方案布置，排水立管及精确位置现场核实。')
+    elif REVISION.bottom_squats:
+        toilet_change=('本次业主反馈已明确功能上下位置：男卫和女卫蹲位区都在底部；男卫小便斗区在顶部，女卫不设小便斗区。图内已按该反馈调整标识，取消旧版“左男右女及位置待核”的文字；洁具图符数量仍为示意，实际数量沿用现场。原墙、蹲位分隔以及原洗手区块的位置和几何不变。')
+    else:
+        toilet_change=('**原图没有男女文字分配、小便斗定位和洁具表。**本版暂按左男右女标识，并在图内带星号注明现场核对。小便斗示意放在左间下部，实际位置和数量需业主/现场确认；没有把示意说成从原DWG读出的实测设施。')
+    private_seats=result['private_seats']
     (OUT/'转换验证.json').write_text(json.dumps(conversions,ensure_ascii=False,indent=2),encoding='utf-8')
     with (OUT/'桌位统计.csv').open('w',encoding='utf-8-sig',newline='') as fh:
         w=csv.writer(fh);w.writerow(['楼层','桌号','桌长mm','桌深mm','座位','凳面mm'])
         for f in (1,2):
             for t in B.TABLES[f]:w.writerow([f,t['id'],600*t['pairs'],600,2*t['pairs'],300])
-        for name in ('包房一','包房二'):w.writerow(['二层',name,1500,'圆桌',8,300])
+        for rt,name in zip(ROUND_TABLES,('包房一','包房二')):
+            w.writerow(['二层',name,rt['dia'],'圆桌',rt['seats'],300])
     with (OUT/'防火栓原图定位.csv').open('w',encoding='utf-8-sig',newline='') as fh:
         w=csv.writer(fh);w.writerow(['编号','楼层','原图文字句柄','原图文字X','原图文字Y','图内标识X','图内标识Y','定位依据'])
         for h in result['hydrant_source_evidence']:
             w.writerow([h['id'],h['floor'],h['handle'],*h['source_insert'][:2],*h['point'],h['basis']])
-    (OUT/'优化说明.md').write_text(f'''# 美莱食堂 V1.3 细化优化说明
+    (OUT/'优化说明.md').write_text(f'''# 美莱食堂 {version} 细化优化说明
+
+{delta_text}
 
 ## 本版调整
 - DWG/DXF：结构、图框、文字采用ACI 7自适应白/黑，尺寸黄色，设备青色，桌凳绿色，消防红色；不再用近黑色RGB线条。无需改变CADCraft全局背景。
@@ -361,14 +526,14 @@ def reports(result,conversions,initial_hash):
 库房在右下方：2850×1800mm，约5.13㎡。厨房移到其上方、靠近打菜区：2850×5400mm，约15.39㎡。中间分隔移至y=2700mm，厨房上方增加900mm工作门连通打菜台后场；员工后门和公共通道保持不穿过厨房/库房。2人2工位、唯一一楼回收点保持。
 
 ## 二楼包房和新增座位
-两间包房净面积约{result['private_net_areas_m2'][0]}㎡、{result['private_net_areas_m2'][1]}㎡，仍各8人、Φ1500mm圆桌。门前1440mm通道保留。包房顶边从y=8100mm下移到7100mm，上方增加两张1200×600mm四人桌，合计新增8座。
+{room_change}
 
-公共座位：一楼110座，二楼60座，合计170座；包房另16座。二楼新增桌组不占包房门前、传菜梯操作区或公共屏前区。桌组人体包络外最小间距两层均800mm，包房门侧通行余量800mm以上。
+公共座位：一楼110座，二楼60座，合计170座；包房另{private_seats}座。二楼新增桌组不占包房门前、传菜梯操作区或公共屏前区。桌组人体包络外最小间距两层均800mm，包房门侧通行余量800mm以上。
 
 ## 卫生间标识的依据
 原有卫生间墙线、蹲位分隔线和原始块保留。新增的蹲位/男卫小便斗符号置于独立“洁具标识_示意”层，仅用于识别，不代表增加洁具或确认数量。
 
-**原图没有男女文字分配、小便斗定位和洁具表。**本版暂按左男右女标识，并在图内带星号注明现场核对。小便斗示意放在左间下部，实际位置和数量需业主/现场确认；没有把示意说成从原DWG读出的实测设施。
+{toilet_change}
 
 ## 显示和使用
 优先在CADCraft打开本目录DWG；黑底检视图在`预览图/*_黑底CADCraft.png`。PDF及普通PNG为白底配色。打印源DXF单独存于`DXF/打印源`，主要编辑源为`DXF`目录同名文件。
@@ -380,21 +545,22 @@ def reports(result,conversions,initial_hash):
 - 仍固定2人打菜；600人60分钟没有由本次加8座自动获得保证。已按170个公共座位重算假设运营场景，见供餐分析。
 - 原DWG未改动，SHA256：`{initial_hash}`。
 ''',encoding='utf-8')
-    (B.ROOT/'deliverables'/'README.md').write_text('''# 当前方案入口
+    (B.ROOT/'deliverables'/'README.md').write_text(f'''# 当前方案入口
 
-**当前最新：V1.3 配色、尺寸及布局细化版。**
+**当前最新：{version}。**
 
-- [一楼白底预览](V1.3/预览图/一楼功能分区与家具布置图.png)
-- [二楼白底预览](V1.3/预览图/二楼功能分区与家具布置图.png)
-- [一楼黑底CADCraft检视](V1.3/预览图/一楼功能分区与家具布置图_黑底CADCraft.png)
-- [二楼黑底CADCraft检视](V1.3/预览图/二楼功能分区与家具布置图_黑底CADCraft.png)
-- [V1.3说明](V1.3/优化说明.md)
+- [一楼白底预览]({version}/预览图/一楼功能分区与家具布置图.png)
+- [二楼白底预览]({version}/预览图/二楼功能分区与家具布置图.png)
+- [一楼黑底CADCraft检视]({version}/预览图/一楼功能分区与家具布置图_黑底CADCraft.png)
+- [二楼黑底CADCraft检视]({version}/预览图/二楼功能分区与家具布置图_黑底CADCraft.png)
+- [{version}说明]({version}/优化说明.md)
 
-厨房库房对调、常闭杂物门、楼梯踏步、防火栓和卫生间标识已补充；二层包房压缩后上方增加8座。
-V1.1/V1.2保留为历史，当前图纸以V1.3目录为准。
+当前包房二净长度{REVISION.room_two_length}mm、{ROUND_TABLES[1]['seats']}人；公共170座，另包房{private_seats}座。卫生间功能标识详见本版说明。
+既有版本保留为历史，当前图纸以{version}目录为准。
 ''',encoding='utf-8')
 
-def main():
+def main(revision=None):
+    configure(revision or Revision())
     OUT.mkdir(parents=True,exist_ok=True)
     for p in (OUT/'DXF',OUT/'DXF'/'打印源',OUT/'预览图'):p.mkdir(exist_ok=True)
     initial_hash=hashlib.sha256(B.SOURCE.read_bytes()).hexdigest()
@@ -423,7 +589,7 @@ def main():
             for e in cm:
                 if e.dxf.handle not in before:e.transform(Matrix44.translate(24000,0,0))
     B.rect(cm,(-1800,-3300,41300,24000),'图框')
-    B.txt(cm,'美莱食堂 V1.3 一二层综合设计图',(19000,23650),330)
+    B.txt(cm,f'美莱食堂 {REVISION.version} 一二层综合设计图',(19000,23650),330)
     B.txt(cm,'本图尺寸单位mm；模型1:1；黑底高对比DWG / 白底配色PDF',(19500,-3050),185)
     docs['一二楼综合设计图']=combo
     docs['餐桌600与凳面300及通道详图']=detail()
@@ -452,7 +618,7 @@ def main():
     result=verify(src)
     B.simulation()
     sim=OUT/'两人供餐敏感性分析.md'
-    sim.write_text(sim.read_text(encoding='utf-8').replace('V1.2','V1.3'),encoding='utf-8')
+    sim.write_text(sim.read_text(encoding='utf-8').replace('V1.2',REVISION.version),encoding='utf-8')
     reports(result,conversions,initial_hash)
     assert hashlib.sha256(B.SOURCE.read_bytes()).hexdigest()==initial_hash
     print(json.dumps({'output':str(OUT),'public_seats':result['public_seats'],
