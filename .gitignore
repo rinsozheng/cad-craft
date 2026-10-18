@@ -1,0 +1,10 @@
+# Local Python bytecode and OS metadata; keep CAD outputs and work files.
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+
+# Local credentials, if configured later.
+.env
+.env.*
+!.env.example

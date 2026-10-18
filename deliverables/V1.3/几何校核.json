@@ -1,0 +1,105 @@
+{
+  "failures": [],
+  "table_spacing": [
+    {
+      "floor": 1,
+      "minimum_occupied_envelope_spacing_mm": 800.0
+    },
+    {
+      "floor": 2,
+      "minimum_occupied_envelope_spacing_mm": 800.0
+    }
+  ],
+  "public_seats": {
+    "1": 110,
+    "2": 60
+  },
+  "private_seats": 16,
+  "screen_geometry_blocked": [],
+  "hydrant_source_evidence": [
+    {
+      "id": "FH-1-01",
+      "floor": 1,
+      "handle": "2B5FC",
+      "point": [
+        585.94,
+        20395
+      ],
+      "label": [
+        -650,
+        20350
+      ],
+      "elbow": [
+        -200,
+        20395
+      ],
+      "rotation": 90,
+      "basis": "原图标注与左上方柜体轮廓相邻，柜体约250×1230",
+      "source_text": "防火栓",
+      "source_insert": [
+        74700.1493078256,
+        21443.571476035908,
+        0.0
+      ]
+    },
+    {
+      "id": "FH-1-02",
+      "floor": 1,
+      "handle": "2B5F9",
+      "point": [
+        6790.94,
+        13800
+      ],
+      "label": [
+        5000,
+        12100
+      ],
+      "elbow": [
+        6100,
+        12400
+      ],
+      "rotation": 0,
+      "basis": "原图标注与一层大厅左下角1260×700柜体轮廓相邻",
+      "source_text": "防火栓",
+      "source_insert": [
+        80566.37776830443,
+        15415.528146400215,
+        0.0
+      ]
+    },
+    {
+      "id": "FH-2-01",
+      "floor": 2,
+      "handle": "2B5FE",
+      "point": [
+        3414.31,
+        3766
+      ],
+      "label": [
+        5300,
+        4700
+      ],
+      "elbow": [
+        4050,
+        4700
+      ],
+      "rotation": 0,
+      "basis": "按原图防火栓文字锚点定位，未虚构柜体尺寸",
+      "source_text": "防火栓",
+      "source_insert": [
+        105208.75383419404,
+        14446.029945375962,
+        0.0
+      ]
+    }
+  ],
+  "private_net_areas_m2": [
+    13.09,
+    13.28
+  ],
+  "kitchen_net_design_m2": 15.39,
+  "store_net_design_m2": 5.13,
+  "stair_treads": "250mm pitch schematic; count and riser height require field confirmation",
+  "under_stair_door": "normally closed; original open arc removed; not used as public entrance",
+  "toilet_icons": "Annotation only. Left male/right female and fixture location/quantity unconfirmed; original walls retained."
+}

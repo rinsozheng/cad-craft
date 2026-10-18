@@ -1,0 +1,18 @@
+﻿p=r"D:\code\github\cad-craft\work\build.py"
+s=open(p,encoding="utf-8").read()
+s=s.replace("""        text(msp, f'工位{i+1}', x + 558, 14850, 160, 'A-SERVING', 'center')
+    text(msp, '打菜区（5工位）', 10390, 15450, 220, 'A-SERVING', 'center')
+    # queue line
+    text(msp, '排队区', 10390, 16000, 220, 'A-TEXT', 'center')
+""","""        text(msp, f'工位{i+1}', x + 558, 14850, 160, 'A-SERVING', 'center')
+""")
+s=s.replace("""    label_room(msp, '公共就餐区', 92.0, 10300, 20550)
+""","""    label_room(msp, '公共就餐区', 92.0, 10300, 20200)
+    text(msp, '打菜区（5工位）', 10390, 15450, 220, 'A-SERVING', 'center')
+    text(msp, '排队区', 10390, 16000, 220, 'A-TEXT', 'center')
+""")
+s=s.replace("text(msp, '一层平面图', 10000, 22750, 580, 'A-TEXT', 'center')","text(msp, '一层平面图', 10000, 22500, 500, 'A-TEXT', 'center')")
+s=s.replace("north_arrow(msp, 19000, 22700)","north_arrow(msp, 19000, 22600)")
+s=s.replace("dim_h(msp, 460, 19840, 22400, 20930, '19380', 'A-DIM')","dim_h(msp, 460, 19840, 22000, 20930, '19380', 'A-DIM')")
+open(p,"w",encoding="utf-8").write(s)
+print("patched")

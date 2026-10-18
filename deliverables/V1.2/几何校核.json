@@ -1,0 +1,46 @@
+{
+  "failures": [],
+  "table_spacing": [
+    {
+      "floor": 1,
+      "minimum_occupied_envelope_spacing_mm": 800.0
+    },
+    {
+      "floor": 2,
+      "minimum_occupied_envelope_spacing_mm": 800.0
+    }
+  ],
+  "public_seats": {
+    "1": 110,
+    "2": 52
+  },
+  "private_seats": 16,
+  "screen_geometry_blocked": [],
+  "original_wc_line_handles_retained": [
+    "2B14F",
+    "2B151",
+    "2B152",
+    "2B153",
+    "2B154",
+    "2B157",
+    "2B158",
+    "2B159",
+    "2B15A",
+    "2B15B",
+    "2B15C",
+    "2B15D",
+    "2B15E",
+    "2B160",
+    "2B162",
+    "2B163"
+  ],
+  "original_1f_lift_line_handles_retained": [
+    "2B472",
+    "2B473",
+    "2B474",
+    "2B475"
+  ],
+  "toilet_fixtures_added": 0,
+  "checks": "table+stool+body envelopes / protected routes / door buffers / original wall lines / columns / new walls / lift landing / public wall sightlines",
+  "limits": "Does not establish field dimensions, egress compliance, actual human occupancy, production capacity or accessible-route compliance."
+}

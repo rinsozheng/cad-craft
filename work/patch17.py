@@ -1,0 +1,11 @@
+﻿p=r"D:\code\github\cad-craft\work\build.py"
+s=open(p,encoding="utf-8").read()
+s=s.replace("def labels_1f(msp):","def labels_1f(msp, scheme='A'):")
+s=s.replace("label_seats(msp, '公共就餐区', 92, 100, 10300, 20200)","label_seats(msp, '公共就餐区', 92 if scheme == 'A' else 84, 100, 10300, 20200)")
+s=s.replace("def labels_2f(msp):","def labels_2f(msp, scheme='A'):")
+s=s.replace("label_seats(msp, '公共就餐区', 80, 84, 3000, 10050)","label_seats(msp, '公共就餐区', 80 if scheme == 'A' else 76, 84, 3000, 10050)")
+s=s.replace("labels_1f(msp)","labels_1f(msp, scheme)")
+s=s.replace("labels_2f(msp)","labels_2f(msp, scheme)")
+s=s.replace("labels_2f(tmsp)","labels_2f(tmsp, scheme)")
+open(p,"w",encoding="utf-8").write(s)
+print("patched")
